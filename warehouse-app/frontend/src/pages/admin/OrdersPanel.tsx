@@ -200,6 +200,51 @@ export default function OrdersPage() {
           </div>
         </div>
 
+        {/* ── SUMMARY STATS BAR ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div className="bg-blue-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-white">
+            {orders.length}
+            </div>
+            <div className="text-blue-300 text-xs mt-1 font-medium">Total Orders</div>
+        </div>
+
+        <div className="bg-blue-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-blue-300">
+            {orders.filter(o => o.status === 'UNASSIGNED').length}
+            </div>
+            <div className="text-blue-400 text-xs mt-1 font-medium">Unassigned</div>
+        </div>
+
+        <div className="bg-blue-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-yellow-300">
+            {orders.filter(o => ['ASSIGNED', 'PICKING'].includes(o.status)).length}
+            </div>
+            <div className="text-blue-400 text-xs mt-1 font-medium">In Progress</div>
+        </div>
+
+        <div className="bg-blue-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-cyan-300">
+            {orders.filter(o => ['PICKED', 'CHECKING'].includes(o.status)).length}
+            </div>
+            <div className="text-blue-400 text-xs mt-1 font-medium">Picked</div>
+        </div>
+
+        <div className="bg-blue-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-green-300">
+            {orders.filter(o => o.status === 'DONE').length}
+            </div>
+            <div className="text-blue-400 text-xs mt-1 font-medium">Done</div>
+        </div>
+
+        <div className="bg-orange-900 rounded-2xl p-4 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-orange-300">
+            {orders.filter(o => ['PICKED', 'DONE'].includes(o.status) && !o.approved).length}
+            </div>
+            <div className="text-orange-400 text-xs mt-1 font-medium">Pending Approval</div>
+        </div>
+        </div>
+
         {/* Message */}
         {message && (
           <div className="bg-blue-100 text-blue-900 px-4 py-3 rounded-xl mb-4 font-medium text-center">
