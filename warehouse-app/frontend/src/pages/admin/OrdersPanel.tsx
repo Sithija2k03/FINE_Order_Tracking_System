@@ -40,30 +40,37 @@ export default function OrdersPage() {
   const dept = department || 'machinery';
   const deptLabel = dept === 'machinery' ? '🔧 Machinery' : '🔩 Accessories';
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [pickers, setPickers] = useState<Picker[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const today = new Date().toISOString().split('T')[0];
+
+  const [orders, setOrders]           = useState<Order[]>([]);
+  const [pickers, setPickers]         = useState<Picker[]>([]);
+  const [search, setSearch]           = useState('');
+  const [loading, setLoading]         = useState(false);
+  const [message, setMessage]         = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [date, setDate]               = useState(today);
 
-  const [soNumber, setSoNumber] = useState('');
-  const [size, setSize] = useState('');
+  const [soNumber, setSoNumber]         = useState('');
+  const [size, setSize]                 = useState('');
   const [deliveryType, setDeliveryType] = useState('');
-  const [pickerId, setPickerId] = useState('');
+  const [pickerId, setPickerId]         = useState('');
 
-  useEffect(() => { fetchData(); }, [department]);
-
+  // ── fetchData defined BEFORE useEffect, uses state vars directly (like ApprovedOrdersPage) ──
   const fetchData = async () => {
     try {
       const [o, p] = await Promise.all([
-        api.get(`/orders?department=${dept}`),
+        api.get(`/orders?department=${dept}&date=${date}`),
         api.get(`/pickers?department=${dept}`)
       ]);
       setOrders(o.data);
       setPickers(p.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  // ── Mirrors ApprovedOrdersPage: depends on [dept, date] ──
+  useEffect(() => { fetchData(); }, [dept, date]);
 
   const showMsg = (msg: string) => {
     setMessage(msg);
@@ -79,20 +86,18 @@ export default function OrdersPage() {
     try {
       const res = await api.post('/orders', {
         so_number: soNumber.trim().toUpperCase(),
-        size,
-        delivery_type: deliveryType,
-        department: dept
+        size, delivery_type: deliveryType, department: dept
       });
-      if (pickerId) {
-        await api.patch(`/orders/${res.data.id}/assign`, { picker_id: pickerId });
-      }
+      if (pickerId) await api.patch(`/orders/${res.data.id}/assign`, { picker_id: pickerId });
       setSoNumber(''); setSize(''); setDeliveryType(''); setPickerId('');
       setShowAddForm(false);
       showMsg('✅ Order added successfully');
       fetchData();
     } catch (err: any) {
       showMsg(`❌ ${err.response?.data?.error || 'Failed to add order'}`);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const assignPicker = async (orderId: string, pid: string) => {
@@ -115,7 +120,9 @@ export default function OrdersPage() {
       await api.delete(`/orders/${orderId}`);
       showMsg('✅ Order deleted');
       fetchData();
-    } catch { showMsg('❌ Failed to delete order'); }
+    } catch {
+      showMsg('❌ Failed to delete order');
+    }
   };
 
   const approveOrder = async (orderId: string, approved: boolean) => {
@@ -132,26 +139,25 @@ export default function OrdersPage() {
 
   const exportOrders = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const res = await api.get(`/orders/export?date=${today}&department=${dept}`);
+      const res = await api.get(`/orders/export?date=${date}&department=${dept}`);
       const rows = res.data;
-      if (!rows.length) { showMsg('❌ No orders to export for today'); return; }
+      if (!rows.length) { showMsg('❌ No orders to export for this date'); return; }
       const headers = Object.keys(rows[0]);
       const csv = [
         headers.join(','),
-        ...rows.map((r: any) =>
-          headers.map(h => `"${r[h] ?? ''}"`).join(',')
-        )
+        ...rows.map((r: any) => headers.map(h => `"${r[h] ?? ''}"`).join(','))
       ].join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Orders_${dept}_${today}.csv`;
+      a.download = `Orders_${dept}_${date}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       showMsg('✅ Export downloaded');
-    } catch { showMsg('❌ Export failed'); }
+    } catch {
+      showMsg('❌ Export failed');
+    }
   };
 
   const filtered = orders.filter(o =>
@@ -165,13 +171,39 @@ export default function OrdersPage() {
         {/* Header */}
         <div className="bg-blue-900 rounded-2xl p-4 md:p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">
-                {deptLabel} — Orders
-              </h1>
-              <p className="text-blue-300 text-sm mt-1">{orders.length} total orders</p>
+
+            {/* LEFT: Back button + title */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(`/admin/${dept}`)}
+                className="bg-blue-800 hover:bg-blue-700 active:scale-95 text-white font-semibold px-4 py-3 rounded-xl text-sm md:text-base transition-all"
+              >
+                ← Back
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-white">{deptLabel} — Orders</h1>
+                <p className="text-blue-300 text-sm mt-1">
+                  {orders.length} orders · {date === today ? 'Today' : date}
+                </p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* RIGHT: date filter + action buttons */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="px-3 py-2 bg-blue-800 text-white border border-blue-600 rounded-xl text-sm focus:outline-none cursor-pointer"
+              />
+              {date !== today && (
+                <button
+                  onClick={() => setDate(today)}
+                  className="bg-blue-700 hover:bg-blue-600 active:scale-95 text-blue-200 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
+                >
+                  Today
+                </button>
+              )}
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="bg-blue-500 hover:bg-blue-400 active:scale-95 text-white font-bold px-4 py-3 rounded-xl text-sm md:text-base transition-all"
@@ -182,7 +214,7 @@ export default function OrdersPage() {
                 onClick={exportOrders}
                 className="bg-blue-700 hover:bg-blue-600 active:scale-95 text-white font-bold px-4 py-3 rounded-xl text-sm md:text-base transition-all"
               >
-                📥 Export Today
+                📥 Export
               </button>
               <button
                 onClick={() => navigate(`/admin/${dept}/approved`)}
@@ -190,17 +222,11 @@ export default function OrdersPage() {
               >
                 ✅ Approved Orders
               </button>
-              <button
-                onClick={() => navigate(`/admin/${dept}`)}
-                className="bg-blue-800 hover:bg-blue-700 active:scale-95 text-white font-semibold px-4 py-3 rounded-xl text-sm md:text-base transition-all"
-              >
-                ← Back
-              </button>
             </div>
           </div>
         </div>
 
-        {/* ── SUMMARY STATS BAR ── */}
+        {/* SUMMARY STATS BAR */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <div className="bg-blue-900 rounded-2xl p-4 text-center">
             <div className="text-2xl md:text-3xl font-bold text-white">{orders.length}</div>
@@ -242,11 +268,9 @@ export default function OrdersPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-blue-700 mb-1">SO Number *</label>
-                <input
-                  type="text" value={soNumber} onChange={e => setSoNumber(e.target.value)}
+                <input type="text" value={soNumber} onChange={e => setSoNumber(e.target.value)}
                   placeholder="e.g. SO-1001"
-                  className="w-full px-3 py-3 border-2 border-blue-100 rounded-xl text-sm focus:outline-none focus:border-blue-500"
-                />
+                  className="w-full px-3 py-3 border-2 border-blue-100 rounded-xl text-sm focus:outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-blue-700 mb-1">Size *</label>
@@ -292,14 +316,12 @@ export default function OrdersPage() {
 
         {/* Search */}
         <div className="mb-4">
-          <input
-            type="text" value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍 Search by SO number..."
-            className="w-full md:w-72 px-4 py-3 bg-blue-900 text-white placeholder-blue-400 border-2 border-blue-700 rounded-xl text-sm focus:outline-none focus:border-blue-400"
-          />
+            className="w-full md:w-72 px-4 py-3 bg-blue-900 text-white placeholder-blue-400 border-2 border-blue-700 rounded-xl text-sm focus:outline-none focus:border-blue-400" />
         </div>
 
-        {/* ── DESKTOP TABLE ── */}
+        {/* DESKTOP TABLE */}
         <div className="hidden md:block bg-white rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -320,32 +342,24 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="text-center py-8 text-blue-300">No orders found</td>
-                  </tr>
+                  <tr><td colSpan={11} className="text-center py-8 text-blue-300">No orders found</td></tr>
                 ) : filtered.map((o, i) => (
                   <tr key={o.id} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
                     <td className="px-4 py-3 font-bold text-blue-900">{o.so_number}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${STATUS_COLORS[o.status] || ''}`}>
-                        {o.status}
-                      </span>
+                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${STATUS_COLORS[o.status] || ''}`}>{o.status}</span>
                     </td>
                     <td className="px-4 py-3 text-blue-700 font-medium">{o.size || '—'}</td>
                     <td className="px-4 py-3 text-blue-700">{o.delivery_type || '—'}</td>
                     <td className="px-4 py-3">
                       {['UNASSIGNED', 'ASSIGNED'].includes(o.status) ? (
-                        <select
-                          value={o.picker_name ? pickers.find(p => p.name === o.picker_name)?.id || '' : ''}
+                        <select value={o.picker_name ? pickers.find(p => p.name === o.picker_name)?.id || '' : ''}
                           onChange={e => assignPicker(o.id, e.target.value)}
-                          className="border border-blue-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500"
-                        >
+                          className="border border-blue-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500">
                           <option value="">Assign</option>
                           {pickers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
-                      ) : (
-                        <span className="text-blue-800 font-medium">{o.picker_name || '—'}</span>
-                      )}
+                      ) : <span className="text-blue-800 font-medium">{o.picker_name || '—'}</span>}
                     </td>
                     <td className="px-4 py-3 text-blue-600 font-mono text-xs">{o.picking_time || '—'}</td>
                     <td className="px-4 py-3 text-orange-600 font-mono text-xs">{o.idle_time || '—'}</td>
@@ -355,11 +369,8 @@ export default function OrdersPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2 items-center">
                         {['UNASSIGNED', 'ASSIGNED'].includes(o.status) && (
-                          <button
-                            onClick={() => deleteOrder(o.id, o.status)}
-                            className="bg-red-600 hover:bg-red-700 active:scale-95 text-white p-2 rounded-lg transition-all"
-                            title="Delete order"
-                          >
+                          <button onClick={() => deleteOrder(o.id, o.status)}
+                            className="bg-red-600 hover:bg-red-700 active:scale-95 text-white p-2 rounded-lg transition-all" title="Delete order">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"/>
                               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -369,17 +380,13 @@ export default function OrdersPage() {
                           </button>
                         )}
                         {['PICKED', 'DONE'].includes(o.status) && !o.approved && (
-                          <button
-                            onClick={() => approveOrder(o.id, o.approved)}
-                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold px-2 py-1 rounded-lg text-xs transition-all whitespace-nowrap"
-                          >
+                          <button onClick={() => approveOrder(o.id, o.approved)}
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold px-2 py-1 rounded-lg text-xs transition-all whitespace-nowrap">
                             ⏳ Pending Approval
                           </button>
                         )}
                         {o.approved && (
-                          <span className="bg-green-100 text-green-700 font-bold px-2 py-1 rounded-lg text-xs whitespace-nowrap">
-                            ✅ Approved
-                          </span>
+                          <span className="bg-green-100 text-green-700 font-bold px-2 py-1 rounded-lg text-xs whitespace-nowrap">✅ Approved</span>
                         )}
                       </div>
                     </td>
@@ -390,7 +397,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* ── MOBILE CARDS ── */}
+        {/* MOBILE CARDS */}
         <div className="md:hidden space-y-3">
           {filtered.length === 0 ? (
             <div className="text-center text-blue-300 py-8">No orders found</div>
@@ -398,9 +405,7 @@ export default function OrdersPage() {
             <div key={o.id} className="bg-white rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-bold text-blue-900 text-lg">{o.so_number}</span>
-                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${STATUS_COLORS[o.status] || ''}`}>
-                  {o.status}
-                </span>
+                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${STATUS_COLORS[o.status] || ''}`}>{o.status}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
                 <div><span className="font-semibold">Size:</span> {o.size || '—'}</div>
@@ -414,19 +419,13 @@ export default function OrdersPage() {
               </div>
               {['UNASSIGNED', 'ASSIGNED'].includes(o.status) && (
                 <div className="mt-3 flex gap-2">
-                  <select
-                    onChange={e => assignPicker(o.id, e.target.value)}
-                    className="flex-1 border border-blue-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
-                  >
+                  <select onChange={e => assignPicker(o.id, e.target.value)}
+                    className="flex-1 border border-blue-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
                     <option value="">Assign Picker</option>
                     {pickers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
-                  {/* ── ONLY THIS BUTTON CHANGED ── */}
-                  <button
-                    onClick={() => deleteOrder(o.id, o.status)}
-                    className="bg-red-600 hover:bg-red-700 active:scale-95 text-white p-2.5 rounded-xl transition-all"
-                    title="Delete order"
-                  >
+                  <button onClick={() => deleteOrder(o.id, o.status)}
+                    className="bg-red-600 hover:bg-red-700 active:scale-95 text-white p-2.5 rounded-xl transition-all" title="Delete order">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="3 6 5 6 21 6"/>
                       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -437,17 +436,13 @@ export default function OrdersPage() {
                 </div>
               )}
               {['PICKED', 'DONE'].includes(o.status) && !o.approved && (
-                <button
-                  onClick={() => approveOrder(o.id, o.approved)}
-                  className="mt-3 w-full bg-orange-100 hover:bg-orange-200 active:scale-95 text-orange-700 font-bold py-3 rounded-xl text-sm transition-all"
-                >
+                <button onClick={() => approveOrder(o.id, o.approved)}
+                  className="mt-3 w-full bg-orange-100 hover:bg-orange-200 active:scale-95 text-orange-700 font-bold py-3 rounded-xl text-sm transition-all">
                   ⏳ Pending Approval — Tap to Approve
                 </button>
               )}
               {o.approved && (
-                <div className="mt-3 w-full bg-green-100 text-green-700 font-bold py-3 rounded-xl text-sm text-center">
-                  ✅ Approved
-                </div>
+                <div className="mt-3 w-full bg-green-100 text-green-700 font-bold py-3 rounded-xl text-sm text-center">✅ Approved</div>
               )}
             </div>
           ))}

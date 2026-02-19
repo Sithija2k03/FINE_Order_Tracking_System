@@ -7,8 +7,17 @@ const auth = require('../middleware/auth');
 
 // Get all orders
 router.get('/', auth, async (req, res) => {
-  const { department } = req.query;
+  const { department, date } = req.query;
+  const filterDate = date || new Date().toISOString().split('T')[0];
   try {
+    let whereClause = 'WHERE DATE(o.created_at) = $1';
+    const params = [filterDate];
+
+    if (department) {
+      whereClause += ' AND o.department = $2';
+      params.push(department);
+    }
+
     const query = `
       SELECT 
         o.*,
@@ -23,10 +32,10 @@ router.get('/', auth, async (req, res) => {
       LEFT JOIN pickers  p  ON o.picker_id   = p.id
       LEFT JOIN checkers c  ON o.checker_id  = c.id
       LEFT JOIN checkers c2 ON o.checker2_id = c2.id
-      ${department ? 'WHERE o.department = $1' : ''}
+      ${whereClause}
       ORDER BY o.created_at DESC
     `;
-    const result = await pool.query(query, department ? [department] : []);
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

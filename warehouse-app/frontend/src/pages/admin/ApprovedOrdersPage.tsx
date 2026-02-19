@@ -77,12 +77,24 @@ export default function ApprovedOrdersPage() {
         {/* Header */}
         <div className="bg-blue-900 rounded-2xl p-4 md:p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">
-                {deptLabel} — Approved Orders
-              </h1>
-              <p className="text-blue-300 text-sm mt-1">{orders.length} approved orders</p>
+
+            {/* LEFT: Back button + title */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(`/admin/${dept}/orders`)}
+                className="bg-blue-800 hover:bg-blue-700 active:scale-95 text-white font-semibold px-4 py-3 rounded-xl text-sm md:text-base transition-all"
+              >
+                ← Back
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-white">
+                  {deptLabel} — Approved Orders
+                </h1>
+                <p className="text-blue-300 text-sm mt-1">{orders.length} approved orders</p>
+              </div>
             </div>
+
+            {/* RIGHT: date filter + export */}
             <div className="flex flex-wrap gap-2 items-center">
               <input
                 type="date"
@@ -95,12 +107,6 @@ export default function ApprovedOrdersPage() {
                 className="bg-blue-500 hover:bg-blue-400 active:scale-95 text-white font-bold px-4 py-2 rounded-xl text-sm transition-all"
               >
                 📥 Export CSV
-              </button>
-              <button
-                onClick={() => navigate(`/admin/${dept}/orders`)}
-                className="bg-blue-800 hover:bg-blue-700 active:scale-95 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-all"
-              >
-                ← Back
               </button>
             </div>
           </div>
