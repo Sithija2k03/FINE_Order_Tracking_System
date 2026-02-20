@@ -83,6 +83,7 @@ router.get('/export', auth, async (req, res) => {
 });
 
 // Approved orders — named route, MUST be before /:id
+// Approved orders — named route, MUST be before /:id
 router.get('/approved', auth, async (req, res) => {
   const { date, department } = req.query;
   try {
@@ -107,6 +108,7 @@ router.get('/approved', auth, async (req, res) => {
         TO_CHAR(o.checking_duration, 'HH24:MI:SS')  AS "Checking Duration",
         TO_CHAR(o.total_duration, 'HH24:MI:SS')     AS "Total Duration",
         TO_CHAR(o.approved_at, 'HH24:MI:SS')        AS "Approved At",
+        o.approved_by_name                           AS "Approved By",
         DATE(o.created_at)                           AS "Date"
       FROM orders o
       LEFT JOIN pickers  p  ON o.picker_id   = p.id
@@ -319,13 +321,18 @@ router.patch('/:id/end-checking', async (req, res) => {
 // 6. Approve order
 router.patch('/:id/approve', auth, async (req, res) => {
   try {
+    const approverId   = req.user.id;
+    const approverName = req.user.username;
+
     const result = await pool.query(
       `UPDATE orders 
-       SET approved    = true,
-           approved_at = NOW(),
-           updated_at  = NOW()
-       WHERE id = $1 AND status IN ('PICKED','DONE') RETURNING *`,
-      [req.params.id]
+       SET approved         = true,
+           approved_at      = NOW(),
+           approved_by      = $1,
+           approved_by_name = $2,
+           updated_at       = NOW()
+       WHERE id = $3 AND status IN ('PICKED','DONE') RETURNING *`,
+      [approverId, approverName, req.params.id]
     );
     if (!result.rows[0]) return res.status(400).json({ error: 'Order must be PICKED or DONE before approving' });
     res.json(result.rows[0]);

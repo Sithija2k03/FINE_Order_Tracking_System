@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/index';
 
-// Interface matches exact column names returned by backend SQL aliases
 interface ApprovedOrder {
   'SO Number': string;
   'Status': string;
@@ -17,11 +16,13 @@ interface ApprovedOrder {
   'Idle End': string;
   'Idle Time': string;
   'Checker Name': string;
+  'Checker 2 Name': string;
   'Check Start': string;
   'Check End': string;
   'Checking Duration': string;
   'Total Duration': string;
   'Approved At': string;
+  'Approved By': string;
   'Date': string;
 }
 
@@ -51,7 +52,6 @@ export default function ApprovedOrdersPage() {
 
   const exportApproved = () => {
     if (!orders.length) { showMsg('❌ No approved orders to export'); return; }
-
     const headers = Object.keys(orders[0]);
     const csv = [
       headers.join(','),
@@ -59,7 +59,6 @@ export default function ApprovedOrdersPage() {
         headers.map(h => `"${o[h as keyof ApprovedOrder] ?? ''}"`).join(',')
       )
     ].join('\n');
-
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -77,8 +76,6 @@ export default function ApprovedOrdersPage() {
         {/* Header */}
         <div className="bg-blue-900 rounded-2xl p-4 md:p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
-            {/* LEFT: Back button + title */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(`/admin/${dept}/orders`)}
@@ -93,13 +90,9 @@ export default function ApprovedOrdersPage() {
                 <p className="text-blue-300 text-sm mt-1">{orders.length} approved orders</p>
               </div>
             </div>
-
-            {/* RIGHT: date filter + export */}
             <div className="flex flex-wrap gap-2 items-center">
               <input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
+                type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="px-3 py-2 bg-blue-800 text-white border border-blue-600 rounded-xl text-sm focus:outline-none"
               />
               <button
@@ -135,31 +128,39 @@ export default function ApprovedOrdersPage() {
                   <th className="px-4 py-3 text-left font-semibold">Check Time</th>
                   <th className="px-4 py-3 text-left font-semibold">Total</th>
                   <th className="px-4 py-3 text-left font-semibold">Approved At</th>
+                  <th className="px-4 py-3 text-left font-semibold">Approved By</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-8 text-blue-300">
+                    <td colSpan={11} className="text-center py-8 text-blue-300">
                       No approved orders for this date
                     </td>
                   </tr>
-                ) : (
-                  orders.map((o, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
-                      <td className="px-4 py-3 font-bold text-blue-900">{o['SO Number']}</td>
-                      <td className="px-4 py-3 text-blue-700">{o['Order Size'] || '—'}</td>
-                      <td className="px-4 py-3 text-blue-700">{o['Delivery Type'] || '—'}</td>
-                      <td className="px-4 py-3 font-medium text-blue-800">{o['Picker Name'] || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-blue-600">{o['Picking Duration'] || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-orange-600">{o['Idle Time'] || '—'}</td>
-                      <td className="px-4 py-3 font-medium text-blue-800">{o['Checker Name'] || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-blue-600">{o['Checking Duration'] || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-bold text-blue-900">{o['Total Duration'] || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-green-600">{o['Approved At'] || '—'}</td>
-                    </tr>
-                  ))
-                )}
+                ) : orders.map((o, i) => (
+                  <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
+                    <td className="px-4 py-3 font-bold text-blue-900">{o['SO Number']}</td>
+                    <td className="px-4 py-3 text-blue-700">{o['Order Size'] || '—'}</td>
+                    <td className="px-4 py-3 text-blue-700">{o['Delivery Type'] || '—'}</td>
+                    <td className="px-4 py-3 font-medium text-blue-800">{o['Picker Name'] || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-blue-600">{o['Picking Duration'] || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-orange-600">{o['Idle Time'] || '—'}</td>
+                    <td className="px-4 py-3 font-medium text-blue-800">{o['Checker Name'] || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-blue-600">{o['Checking Duration'] || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-bold text-blue-900">{o['Total Duration'] || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-green-600">{o['Approved At'] || '—'}</td>
+                    <td className="px-4 py-3">
+                      {o['Approved By'] ? (
+                        <span className="bg-green-100 text-green-700 font-bold px-2 py-1 rounded-lg text-xs whitespace-nowrap">
+                          ✅ {o['Approved By']}
+                        </span>
+                      ) : (
+                        <span className="text-blue-300 text-xs">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -168,41 +169,30 @@ export default function ApprovedOrdersPage() {
         {/* Mobile Cards */}
         <div className="md:hidden space-y-3">
           {orders.length === 0 ? (
-            <div className="text-center text-blue-300 py-8">
-              No approved orders for this date
-            </div>
-          ) : (
-            orders.map((o, i) => (
-              <div key={i} className="bg-white rounded-2xl p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-bold text-blue-900 text-lg">{o['SO Number']}</span>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold">
-                    ✅ APPROVED
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
-                  <div><span className="font-semibold">Size:</span> {o['Order Size'] || '—'}</div>
-                  <div><span className="font-semibold">Delivery:</span> {o['Delivery Type'] || '—'}</div>
-                  <div><span className="font-semibold">Picker:</span> {o['Picker Name'] || '—'}</div>
-                  <div><span className="font-semibold">Checker:</span> {o['Checker Name'] || '—'}</div>
-                  <div><span className="font-semibold">Pick Time:</span> {o['Picking Duration'] || '—'}</div>
-                  <div>
-                    <span className="font-semibold">Idle:</span>{' '}
-                    <span className="text-orange-600">{o['Idle Time'] || '—'}</span>
-                  </div>
-                  <div><span className="font-semibold">Check Time:</span> {o['Checking Duration'] || '—'}</div>
-                  <div>
-                    <span className="font-semibold">Total:</span>{' '}
-                    <span className="font-bold">{o['Total Duration'] || '—'}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-semibold">Approved At:</span>{' '}
-                    <span className="text-green-600">{o['Approved At'] || '—'}</span>
-                  </div>
+            <div className="text-center text-blue-300 py-8">No approved orders for this date</div>
+          ) : orders.map((o, i) => (
+            <div key={i} className="bg-white rounded-2xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <span className="font-bold text-blue-900 text-lg">{o['SO Number']}</span>
+                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold">✅ APPROVED</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                <div><span className="font-semibold">Size:</span> {o['Order Size'] || '—'}</div>
+                <div><span className="font-semibold">Delivery:</span> {o['Delivery Type'] || '—'}</div>
+                <div><span className="font-semibold">Picker:</span> {o['Picker Name'] || '—'}</div>
+                <div><span className="font-semibold">Checker:</span> {o['Checker Name'] || '—'}</div>
+                <div><span className="font-semibold">Pick Time:</span> {o['Picking Duration'] || '—'}</div>
+                <div><span className="font-semibold">Idle:</span> <span className="text-orange-600">{o['Idle Time'] || '—'}</span></div>
+                <div><span className="font-semibold">Check Time:</span> {o['Checking Duration'] || '—'}</div>
+                <div><span className="font-semibold">Total:</span> <span className="font-bold">{o['Total Duration'] || '—'}</span></div>
+                <div><span className="font-semibold">Approved At:</span> <span className="text-green-600">{o['Approved At'] || '—'}</span></div>
+                <div>
+                  <span className="font-semibold">Approved By:</span>{' '}
+                  <span className="text-green-700 font-bold">{o['Approved By'] || '—'}</span>
                 </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
 
       </div>
