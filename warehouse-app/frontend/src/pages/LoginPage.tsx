@@ -33,7 +33,7 @@ export default function LoginPage() {
     localStorage.setItem('token', res.data.token);
     console.log('Token saved, verifying:', localStorage.getItem('token'));
     
-    login(res.data.token);
+    login(res.data.token, res.data.username);
     navigate('/admin');
   } catch (err) {
     console.error('Login failed:', err);

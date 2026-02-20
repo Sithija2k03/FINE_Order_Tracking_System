@@ -9,7 +9,7 @@ interface Checker { id: string; name: string; }
 export default function AdminDashboard() {
   const { department } = useParams<{ department: string }>();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, username } = useAuth();
 
   const [pickers, setPickers] = useState<Picker[]>([]);
   const [checkers, setCheckers] = useState<Checker[]>([]);
@@ -85,6 +85,32 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-blue-950 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
 
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-800 rounded-2xl px-6 py-5 mb-4 flex items-center justify-between shadow-lg border border-blue-600">
+        <div className="flex items-center gap-4">
+          {/* Avatar circle with initial */}
+          <div className="w-12 h-12 rounded-full bg-blue-500 border-2 border-blue-300 flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-xl">
+              {(username || 'A')[0].toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <p className="text-blue-300 text-xs font-medium uppercase tracking-widest mb-0.5">Welcome back</p>
+            <p className="text-white font-bold text-2xl leading-tight">{username || 'Admin'}</p>
+          </div>
+        </div>
+
+        {/* Right side — date + admin badge */}
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+            🔐 Administrator
+          </span>
+          <span className="text-blue-300 text-xs">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </span>
+        </div>
+      </div>
+
         {/* Header */}
         <div className="bg-blue-900 rounded-2xl p-4 md:p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -113,7 +139,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ── STATS CARDS ── */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-blue-900 rounded-2xl p-5 flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
@@ -142,7 +168,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Two column layout on tablet+ */}
+        {/* Two column layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Pickers Section */}
